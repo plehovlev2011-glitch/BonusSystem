@@ -1,11 +1,10 @@
 // Конфигурация GitHub API
 const GITHUB_CONFIG = {
-    // ЗАМЕНИТЕ НА ВАШИ ДАННЫЕ
-    owner: 'ВАШ_USERNAME_GITHUB',
-    repo: 'ВАШ_РЕПОЗИТОРИЙ',
-    token: 'ВАШ_GITHUB_TOKEN',
+    owner: 'plehovlev2011-glitch',
+    repo: 'BonusSystem',
+    token: '', // ОСТАВЬТЕ ПУСТЫМ!
     dataFile: 'bonus_data.json'
 };
 
-// Ключ шифрования (должен совпадать в клиентской и админ частях)
+// Ключ шифрования
 const ENCRYPTION_KEY = 'pepper_bonus_secret_key_2024';
