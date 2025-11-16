@@ -34,10 +34,12 @@ function decrypt(encryptedText) {
 // GitHub API функции
 async function githubAPI(endpoint, method = 'GET', data = null) {
     const url = `https://api.github.com/${endpoint}`;
+    const token = process.env.GITHUB_TOKEN || GITHUB_CONFIG.token;
+    
     const options = {
         method: method,
         headers: {
-            'Authorization': `token ${GITHUB_CONFIG.token}`,
+            'Authorization': `token ${token}`,
             'Content-Type': 'application/json',
         }
     };
