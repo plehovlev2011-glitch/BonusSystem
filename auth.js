@@ -31,49 +31,56 @@ function decrypt(encryptedText) {
         });
 }
 
-// GitHub API функции через прокси
+// GitHub API функции
 async function githubAPI(endpoint, method = 'GET', data = null) {
-    const proxyUrl = '/api/github-proxy';
+    const token = GITHUB_CONFIG.token;
+    
+    if (!token) {
+        throw new Error('токен не настроен');
+    }
+    
+    const url = `https://api.github.com/${endpoint}`;
+    const options = {
+        method: method,
+        headers: {
+            'Authorization': `token ${token}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'Pepper-Bonus-System'
+        }
+    };
+    
+    if (data) {
+        options.body = JSON.stringify(data);
+    }
     
     try {
-        const response = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                endpoint: endpoint,
-                method: method,
-                data: data
-            })
-        });
-
+        const response = await fetch(url, options);
+        
         if (!response.ok) {
+            // Если файла нет - это нормально для первого запуска
+            if (response.status === 404 && endpoint.includes('contents')) {
+                throw new Error('FILE_NOT_FOUND');
+            }
+            
             const errorText = await response.text();
-            throw new Error(`ошибка сервера: ${response.status} - ${errorText}`);
+            console.error('GitHub API Error:', response.status, errorText);
+            
+            if (response.status === 401) {
+                throw new Error('неверный токен доступа');
+            } else if (response.status === 403) {
+                throw new Error('доступ запрещен. проверьте права токена');
+            } else {
+                throw new Error(`ошибка GitHub: ${response.status}`);
+            }
         }
-
-        const result = await response.json();
         
-        // Если в ответе есть ошибка от GitHub
-        if (result.error) {
-            throw new Error(result.error);
-        }
-        
-        return result;
+        return await response.json();
     } catch (error) {
-        console.error('API error:', error);
-        
-        if (error.message.includes('Failed to fetch')) {
-            throw new Error('не удалось соединиться с сервером. проверьте интернет-соединение.');
-        } else if (error.message.includes('401') || error.message.includes('403')) {
-            throw new Error('ошибка доступа. проверьте настройки токена.');
-        } else if (error.message.includes('404')) {
-            // Это нормально - файла еще нет
-            throw error;
-        } else {
-            throw new Error('временная проблема с сервером. попробуйте через минуту.');
+        if (error.message === 'FILE_NOT_FOUND') {
+            throw error; // Пробрасываем специальную ошибку
         }
+        console.error('Network error:', error);
+        throw new Error('проблемы с интернет-соединением');
     }
 }
 
@@ -86,7 +93,7 @@ async function loadUserData() {
         return JSON.parse(decryptedJson);
     } catch (error) {
         // Если файла нет, создаем пустую базу
-        if (error.message.includes('404')) {
+        if (error.message === 'FILE_NOT_FOUND') {
             return { users: {} };
         }
         throw error;
@@ -102,15 +109,15 @@ async function saveUserData(data) {
         const currentContent = await githubAPI(`repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataFile}`);
         
         return await githubAPI(`repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataFile}`, 'PUT', {
-            message: 'Update bonus data - ' + new Date().toISOString(),
+            message: `Update bonus data - ${new Date().toLocaleString()}`,
             content: btoa(encryptedData),
             sha: currentContent.sha
         });
     } catch (error) {
         // Если файла нет, создаем новый
-        if (error.message.includes('404')) {
+        if (error.message === 'FILE_NOT_FOUND') {
             return await githubAPI(`repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataFile}`, 'PUT', {
-                message: 'Create bonus data - ' + new Date().toISOString(),
+                message: `Create bonus data - ${new Date().toLocaleString()}`,
                 content: btoa(encryptedData)
             });
         }
@@ -271,25 +278,3 @@ window.addEventListener('DOMContentLoaded', async () => {
         showWelcome();
     }
 });
-
-// Временное решение для тестирования - localStorage fallback
-function enableLocalStorageFallback() {
-    console.log('Включен режим localStorage для тестирования');
-    
-    window.loadUserData = async function() {
-        try {
-            const fallback = localStorage.getItem('pepper_fallback_data');
-            return fallback ? JSON.parse(fallback) : { users: {} };
-        } catch (error) {
-            return { users: {} };
-        }
-    };
-    
-    window.saveUserData = async function(data) {
-        localStorage.setItem('pepper_fallback_data', JSON.stringify(data));
-        return { success: true };
-    };
-}
-
-// Если прокси не работает, раскомментируйте следующую строку:
-// enableLocalStorageFallback();
