@@ -31,34 +31,49 @@ function decrypt(encryptedText) {
         });
 }
 
-// GitHub API функции
+// GitHub API функции через прокси
 async function githubAPI(endpoint, method = 'GET', data = null) {
-    const url = `https://api.github.com/${endpoint}`;
-    const token = GITHUB_CONFIG.token; // Используем токен из config.js
-    
-    if (!token) {
-        throw new Error('система временно недоступна. пожалуйста, попробуйте позже.');
-    }
-    
-    const options = {
-        method: method,
-        headers: {
-            'Authorization': `token ${token}`,
-            'Content-Type': 'application/json',
-        }
-    };
-    
-    if (data) {
-        options.body = JSON.stringify(data);
-    }
+    const proxyUrl = '/api/github-proxy';
     
     try {
-        const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`ошибка соединения: ${response.status}`);
-        return await response.json();
+        const response = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                endpoint: endpoint,
+                method: method,
+                data: data
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`ошибка сервера: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        
+        // Если в ответе есть ошибка от GitHub
+        if (result.error) {
+            throw new Error(result.error);
+        }
+        
+        return result;
     } catch (error) {
-        console.error('GitHub API error:', error);
-        throw new Error('не удалось соединиться с сервером. проверьте интернет-соединение.');
+        console.error('API error:', error);
+        
+        if (error.message.includes('Failed to fetch')) {
+            throw new Error('не удалось соединиться с сервером. проверьте интернет-соединение.');
+        } else if (error.message.includes('401') || error.message.includes('403')) {
+            throw new Error('ошибка доступа. проверьте настройки токена.');
+        } else if (error.message.includes('404')) {
+            // Это нормально - файла еще нет
+            throw error;
+        } else {
+            throw new Error('временная проблема с сервером. попробуйте через минуту.');
+        }
     }
 }
 
@@ -83,11 +98,11 @@ async function saveUserData(data) {
     const encryptedData = await encrypt(jsonString);
     
     try {
-        // Получаем текущий файл чтобы узнать sha
+        // Пытаемся получить текущий файл чтобы узнать sha
         const currentContent = await githubAPI(`repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataFile}`);
         
         return await githubAPI(`repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataFile}`, 'PUT', {
-            message: 'Update bonus data',
+            message: 'Update bonus data - ' + new Date().toISOString(),
             content: btoa(encryptedData),
             sha: currentContent.sha
         });
@@ -95,7 +110,7 @@ async function saveUserData(data) {
         // Если файла нет, создаем новый
         if (error.message.includes('404')) {
             return await githubAPI(`repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataFile}`, 'PUT', {
-                message: 'Create bonus data',
+                message: 'Create bonus data - ' + new Date().toISOString(),
                 content: btoa(encryptedData)
             });
         }
@@ -168,6 +183,8 @@ async function register() {
     }
 
     try {
+        showMessage('регистрируем вас в системе...', 'success');
+        
         const data = await loadUserData();
         
         if (data.users[username]) {
@@ -200,6 +217,8 @@ async function login() {
     }
 
     try {
+        showMessage('входим в систему...', 'success');
+        
         const data = await loadUserData();
         const user = data.users[username];
 
@@ -209,7 +228,8 @@ async function login() {
                 bonuses: user.bonuses,
                 userId: user.userId 
             }));
-            await showDashboard();
+            showMessage('успешный вход! загружаем ваш кабинет...', 'success');
+            setTimeout(() => showDashboard(), 1000);
         } else {
             showMessage('неверный никнейм или пароль. попробуйте еще раз', 'error');
         }
@@ -251,3 +271,25 @@ window.addEventListener('DOMContentLoaded', async () => {
         showWelcome();
     }
 });
+
+// Временное решение для тестирования - localStorage fallback
+function enableLocalStorageFallback() {
+    console.log('Включен режим localStorage для тестирования');
+    
+    window.loadUserData = async function() {
+        try {
+            const fallback = localStorage.getItem('pepper_fallback_data');
+            return fallback ? JSON.parse(fallback) : { users: {} };
+        } catch (error) {
+            return { users: {} };
+        }
+    };
+    
+    window.saveUserData = async function(data) {
+        localStorage.setItem('pepper_fallback_data', JSON.stringify(data));
+        return { success: true };
+    };
+}
+
+// Если прокси не работает, раскомментируйте следующую строку:
+// enableLocalStorageFallback();
