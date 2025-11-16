@@ -33,11 +33,16 @@ function showQR() {
 }
 
 async function updateProfile() {
-    const newUsername = document.getElementById('changeUsername').value.trim();
+    const newUsername = document.getElementById('changeUsername').value.trim().toLowerCase();
     const newPassword = document.getElementById('changePassword').value.trim();
     
     const user = getCurrentUser();
     if (!user) return;
+    
+    if (!newUsername && !newPassword) {
+        showMessage('введите новые данные для изменения', 'error');
+        return;
+    }
     
     try {
         const data = await loadUserData();
@@ -46,7 +51,12 @@ async function updateProfile() {
         // Меняем никнейм если нужно
         if (newUsername && newUsername !== user.username) {
             if (data.users[newUsername]) {
-                alert('Этот никнейм уже занят!');
+                showMessage('этот никнейм уже занят. выберите другой', 'error');
+                return;
+            }
+            
+            if (!/^[a-z0-9]+$/.test(newUsername)) {
+                showMessage('никнейм может содержать только английские буквы и цифры', 'error');
                 return;
             }
             
@@ -63,6 +73,10 @@ async function updateProfile() {
         
         // Меняем пароль если нужно
         if (newPassword && data.users[user.username]) {
+            if (newPassword.length < 4) {
+                showMessage('пароль должен содержать минимум 4 символа', 'error');
+                return;
+            }
             data.users[user.username].password = newPassword;
             changed = true;
         }
@@ -73,10 +87,10 @@ async function updateProfile() {
             document.getElementById('currentUsername').value = user.username;
             document.getElementById('changeUsername').value = '';
             document.getElementById('changePassword').value = '';
-            alert('Профиль обновлен!');
+            showMessage('отлично! данные профиля обновлены', 'success');
         }
     } catch (error) {
-        alert('Ошибка обновления: ' + error.message);
+        showMessage('ой! не удалось обновить профиль: ' + error.message, 'error');
     }
 }
 
@@ -96,7 +110,7 @@ async function updateBonusDisplay() {
             localStorage.setItem('current_user', JSON.stringify(user));
         }
     } catch (error) {
-        console.error('Error updating bonuses:', error);
+        console.error('error updating bonuses:', error);
     }
 }
 
