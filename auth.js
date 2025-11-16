@@ -31,27 +31,13 @@ function decrypt(encryptedText) {
         });
 }
 
-// Получение токена из Environment Variables
-function getGitHubToken() {
-    // Для Vercel используем import.meta.env
-    if (typeof import !== 'undefined' && import.meta && import.meta.env) {
-        return import.meta.env.VERCEL_GITHUB_TOKEN || import.meta.env.GITHUB_TOKEN;
-    }
-    // Для Netlify используем process.env
-    if (typeof process !== 'undefined' && process.env) {
-        return process.env.GITHUB_TOKEN;
-    }
-    // Локальная разработка
-    return GITHUB_CONFIG.token;
-}
-
 // GitHub API функции
 async function githubAPI(endpoint, method = 'GET', data = null) {
     const url = `https://api.github.com/${endpoint}`;
-    const token = getGitHubToken();
+    const token = GITHUB_CONFIG.token; // Используем токен из config.js
     
     if (!token) {
-        throw new Error('GitHub token not configured');
+        throw new Error('система временно недоступна. пожалуйста, попробуйте позже.');
     }
     
     const options = {
@@ -68,11 +54,11 @@ async function githubAPI(endpoint, method = 'GET', data = null) {
     
     try {
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+        if (!response.ok) throw new Error(`ошибка соединения: ${response.status}`);
         return await response.json();
     } catch (error) {
         console.error('GitHub API error:', error);
-        throw error;
+        throw new Error('не удалось соединиться с сервером. проверьте интернет-соединение.');
     }
 }
 
@@ -118,24 +104,66 @@ async function saveUserData(data) {
 }
 
 // Функции интерфейса
+function showWelcome() {
+    document.getElementById('welcomeSection').classList.remove('hidden');
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('registerSection').classList.add('hidden');
+    document.getElementById('dashboard').classList.add('hidden');
+    clearMessages();
+}
+
 function showLogin() {
+    document.getElementById('welcomeSection').classList.add('hidden');
     document.getElementById('loginSection').classList.remove('hidden');
     document.getElementById('registerSection').classList.add('hidden');
     document.getElementById('dashboard').classList.add('hidden');
+    clearMessages();
 }
 
 function showRegister() {
+    document.getElementById('welcomeSection').classList.add('hidden');
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('registerSection').classList.remove('hidden');
     document.getElementById('dashboard').classList.add('hidden');
+    clearMessages();
+}
+
+function showMessage(message, type) {
+    clearMessages();
+    const messageDiv = document.createElement('div');
+    messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+    messageDiv.textContent = message;
+    
+    const card = document.querySelector('.card:not(.hidden)');
+    card.insertBefore(messageDiv, card.firstChild);
+}
+
+function clearMessages() {
+    const messages = document.querySelectorAll('.error-message, .success-message');
+    messages.forEach(msg => msg.remove());
 }
 
 async function register() {
-    const username = document.getElementById('newUsername').value.trim();
+    const username = document.getElementById('newUsername').value.trim().toLowerCase();
     const password = document.getElementById('newPassword').value.trim();
 
     if (!username || !password) {
-        alert('Заполните все поля!');
+        showMessage('пожалуйста, заполните все поля', 'error');
+        return;
+    }
+
+    if (username.length < 2) {
+        showMessage('никнейм должен содержать минимум 2 символа', 'error');
+        return;
+    }
+
+    if (password.length < 4) {
+        showMessage('пароль должен содержать минимум 4 символа', 'error');
+        return;
+    }
+
+    if (!/^[a-z0-9]+$/.test(username)) {
+        showMessage('никнейм может содержать только английские буквы и цифры', 'error');
         return;
     }
 
@@ -143,7 +171,7 @@ async function register() {
         const data = await loadUserData();
         
         if (data.users[username]) {
-            alert('Такой никнейм уже существует!');
+            showMessage('такой никнейм уже занят. попробуйте другой', 'error');
             return;
         }
 
@@ -155,16 +183,21 @@ async function register() {
         };
 
         await saveUserData(data);
-        alert('Регистрация успешна! Теперь войдите в систему.');
-        showLogin();
+        showMessage('ура! регистрация прошла успешно! теперь войдите в систему', 'success');
+        setTimeout(() => showLogin(), 2000);
     } catch (error) {
-        alert('Ошибка регистрации: ' + error.message);
+        showMessage('ой! не удалось зарегистрироваться: ' + error.message, 'error');
     }
 }
 
 async function login() {
-    const username = document.getElementById('username').value.trim();
+    const username = document.getElementById('username').value.trim().toLowerCase();
     const password = document.getElementById('password').value.trim();
+
+    if (!username || !password) {
+        showMessage('пожалуйста, введите никнейм и пароль', 'error');
+        return;
+    }
 
     try {
         const data = await loadUserData();
@@ -178,16 +211,17 @@ async function login() {
             }));
             await showDashboard();
         } else {
-            alert('Неверный никнейм или пароль!');
+            showMessage('неверный никнейм или пароль. попробуйте еще раз', 'error');
         }
     } catch (error) {
-        alert('Ошибка входа: ' + error.message);
+        showMessage('ой! не удалось войти: ' + error.message, 'error');
     }
 }
 
 function logout() {
     localStorage.removeItem('current_user');
-    showLogin();
+    showWelcome();
+    showMessage('вы успешно вышли из системы. ждем вас снова!', 'success');
 }
 
 function getCurrentUser() {
@@ -196,6 +230,7 @@ function getCurrentUser() {
 }
 
 async function showDashboard() {
+    document.getElementById('welcomeSection').classList.add('hidden');
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('registerSection').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
@@ -213,6 +248,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (getCurrentUser()) {
         await showDashboard();
     } else {
-        showLogin();
+        showWelcome();
     }
 });
