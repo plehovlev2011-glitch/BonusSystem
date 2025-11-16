@@ -3,99 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Бонусная система - ПЕРЕЦ</title>
+    <title>бонусная система ПЕРЕЦ</title>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #f5f5f5; }
-        .container { max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #d35400; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        button { width: 100%; padding: 12px; background: #d35400; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #e67e22; }
+        body { font-family: 'Arial', sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); min-height: 100vh; }
+        .container { max-width: 400px; margin: 0 auto; padding: 20px; }
+        .card { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); margin-top: 20px; }
+        h1 { text-align: center; color: #d35400; margin-bottom: 10px; font-size: 24px; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 25px; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50; font-size: 14px; }
+        input { width: 100%; padding: 12px; border: 2px solid #ecf0f1; border-radius: 8px; font-size: 16px; transition: border-color 0.3s; }
+        input:focus { border-color: #d35400; outline: none; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; }
+        .btn-primary { background: #d35400; color: white; }
+        .btn-primary:hover { background: #e67e22; transform: translateY(-2px); }
+        .btn-secondary { background: #3498db; color: white; margin-top: 10px; }
+        .btn-secondary:hover { background: #2980b9; transform: translateY(-2px); }
+        .btn-outline { background: transparent; border: 2px solid #bdc3c7; color: #7f8c8d; }
+        .btn-outline:hover { border-color: #d35400; color: #d35400; transform: translateY(-2px); }
         .hidden { display: none; }
         #qrcode { text-align: center; margin: 20px 0; }
-        .bonus-display { text-align: center; font-size: 24px; font-weight: bold; color: #d35400; margin: 20px 0; }
-        .nav { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .nav button { width: auto; padding: 8px 15px; }
-        .logout { background: #c0392b !important; }
-        .logout:hover { background: #e74c3c !important; }
-        .loading { text-align: center; color: #666; }
+        .bonus-display { text-align: center; font-size: 28px; font-weight: bold; color: #d35400; margin: 25px 0; padding: 15px; background: #fff8f0; border-radius: 10px; }
+        .nav { display: flex; justify-content: space-between; margin-bottom: 25px; gap: 10px; }
+        .nav button { width: auto; padding: 10px 15px; font-size: 14px; }
+        .logout { background: #e74c3c !important; }
+        .logout:hover { background: #c0392b !important; }
+        .loading { text-align: center; color: #7f8c8d; padding: 20px; }
+        .welcome-text { text-align: center; color: #2c3e50; margin-bottom: 25px; line-height: 1.6; }
+        .password-requirements { font-size: 12px; color: #7f8c8d; margin-top: 5px; }
+        .error-message { background: #ffeaea; color: #e74c3c; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; border-left: 4px solid #e74c3c; }
+        .success-message { background: #e8f6ef; color: #27ae60; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; border-left: 4px solid #27ae60; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>ПЕРЕЦ - Бонусная система</h1>
+        <h1>бонусная система</h1>
+        <div class="subtitle"></div>
         
+        <!-- Выбор типа пользователя -->
+        <div id="welcomeSection" class="card">
+            <div class="welcome-text">
+                добро пожаловать в бонусную систему!<br>
+                здесь вы можете накапливать бонусы за посещения
+            </div>
+            <button class="btn-primary" onclick="showLogin()">я уже зарегистрирован</button>
+            <button class="btn-secondary" onclick="showRegister()">я не зарегистрирован</button>
+        </div>
+
         <!-- Форма входа -->
-        <div id="loginSection">
+        <div id="loginSection" class="card hidden">
+            <div class="welcome-text">отлично! рады видеть вас снова</div>
             <div class="form-group">
-                <label>Никнейм:</label>
-                <input type="text" id="username" placeholder="Введите никнейм">
+                <label>ваш никнейм:</label>
+                <input type="text" id="username" placeholder="введите ваш никнейм">
             </div>
             <div class="form-group">
-                <label>Пароль:</label>
-                <input type="password" id="password" placeholder="Введите пароль">
+                <label>пароль:</label>
+                <input type="password" id="password" placeholder="введите ваш пароль">
             </div>
-            <button onclick="login()">Войти</button>
-            <button onclick="showRegister()" style="margin-top: 10px; background: #27ae60;">Зарегистрироваться</button>
+            <button class="btn-primary" onclick="login()">войти в систему</button>
+            <button class="btn-outline" onclick="showWelcome()">назад</button>
         </div>
 
         <!-- Форма регистрации -->
-        <div id="registerSection" class="hidden">
+        <div id="registerSection" class="card hidden">
+            <div class="welcome-text">давайте зарегистрируем вас в системе!</div>
             <div class="form-group">
-                <label>Новый никнейм:</label>
-                <input type="text" id="newUsername" placeholder="Придумайте никнейм">
+                <label>придумайте никнейм:</label>
+                <input type="text" id="newUsername" placeholder="только английские буквы и цифры">
             </div>
             <div class="form-group">
-                <label>Новый пароль:</label>
-                <input type="password" id="newPassword" placeholder="Придумайте пароль">
+                <label>придумайте пароль:</label>
+                <input type="password" id="newPassword" placeholder="минимум 4 символа">
+                <div class="password-requirements">рекомендуем использовать не менее 4 символов</div>
             </div>
-            <button onclick="register()">Зарегистрироваться</button>
-            <button onclick="showLogin()" style="margin-top: 10px; background: #7f8c8d;">Назад к входу</button>
+            <button class="btn-primary" onclick="register()">создать аккаунт</button>
+            <button class="btn-outline" onclick="showWelcome()">назад</button>
         </div>
 
         <!-- Личный кабинет -->
-        <div id="dashboard" class="hidden">
+        <div id="dashboard" class="card hidden">
             <div class="nav">
-                <button onclick="showProfile()">Профиль</button>
-                <button onclick="showQR()">QR-код</button>
-                <button class="logout" onclick="logout()">Выйти</button>
+                <button class="btn-outline" onclick="showProfile()">профиль</button>
+                <button class="btn-outline" onclick="showQR()">мой qr-код</button>
+                <button class="logout" onclick="logout()">выйти</button>
             </div>
 
             <!-- Профиль -->
             <div id="profileSection">
-                <div class="loading" id="loadingProfile">Загрузка...</div>
+                <div class="loading" id="loadingProfile">загружаем ваш профиль...</div>
                 <div id="profileContent" class="hidden">
                     <div class="form-group">
-                        <label>Текущий никнейм:</label>
-                        <input type="text" id="currentUsername" readonly>
+                        <label>текущий никнейм:</label>
+                        <input type="text" id="currentUsername" readonly style="background: #f8f9fa;">
                     </div>
                     <div class="form-group">
-                        <label>Новый никнейм:</label>
-                        <input type="text" id="changeUsername" placeholder="Новый никнейм">
+                        <label>новый никнейм:</label>
+                        <input type="text" id="changeUsername" placeholder="если хотите изменить">
                     </div>
                     <div class="form-group">
-                        <label>Новый пароль:</label>
-                        <input type="password" id="changePassword" placeholder="Новый пароль">
+                        <label>новый пароль:</label>
+                        <input type="password" id="changePassword" placeholder="если хотите изменить">
                     </div>
-                    <button onclick="updateProfile()">Обновить профиль</button>
+                    <button class="btn-primary" onclick="updateProfile()">обновить данные</button>
                     
                     <div class="bonus-display">
-                        Бонусы: <span id="bonusCount">0</span>
+                        ваши бонусы: <span id="bonusCount">0</span>
                     </div>
                 </div>
             </div>
 
             <!-- QR-код -->
             <div id="qrSection" class="hidden">
+                <div class="welcome-text">покажите этот qr-код на кассе для начисления бонусов</div>
                 <div id="qrcode"></div>
                 <div class="bonus-display">
-                    Ваши бонусы: <span id="qrBonusCount">0</span>
+                    доступно бонусов: <span id="qrBonusCount">0</span>
                 </div>
-                <p style="text-align: center; margin-top: 10px; color: #666;">Покажите этот QR-код на кассе для списания бонусов</p>
             </div>
         </div>
     </div>
